@@ -9,6 +9,7 @@ import { rateLimit, RateLimitPresets } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 interface RouteParams {
   params: Promise<{ date: string }>;

@@ -4,6 +4,7 @@ import { validateDateString, validateLanguage, validateNewspaperName } from '@/l
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const rateLimitResult = await rateLimit(request, RateLimitPresets.standard);

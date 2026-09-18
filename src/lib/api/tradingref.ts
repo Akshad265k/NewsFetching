@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { 
   TRADINGREF_API_BASE, 
   ALPHABET, 
@@ -11,7 +12,11 @@ import {
   LANGUAGE_DISPLAY_NAMES,
 } from '@/lib/constants';
 import { sanitizeName } from '@/lib/utils/sanitize';
-import { fetchLiveDateManifest, fetchLiveEditionPages } from '@/lib/scraper/live-scraper';
+import { 
+  fetchLiveDateManifest, 
+  fetchLiveEditionPages, 
+  readSnapshotFile 
+} from '@/lib/scraper/live-scraper';
 import type { 
   DecryptedEntry, 
   NewspaperData, 
@@ -89,21 +94,9 @@ export function findMatchingKey(keys: string[], query: string): string | undefin
 export async function fetchLiveData(dateStr: string): Promise<NewspaperData | null> {
   const cleanDate = dateStr.replace(/-/g, '');
 
-  // 1. Check local snapshot archives first (fastest, 0ms)
-  try {
-    const snapshotsDir = path.join(process.cwd(), 'resources', 'tradingref-data', 'json-snapshots');
-    const exactFile = path.join(snapshotsDir, `${cleanDate}.json`);
-    
-    if (fs.existsSync(exactFile)) {
-      const content = fs.readFileSync(exactFile, 'utf-8');
-      const parsed = JSON.parse(content);
-      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-        return parsed as NewspaperData;
-      }
-    }
-  } catch (snapshotErr) {
-    console.error('Local snapshot read error:', snapshotErr);
-  }
+  // 1. Check local / tmp snapshot archives first (fastest, 0ms)
+  const cached = readSnapshotFile(cleanDate);
+  if (cached) return cached;
 
   // 2. Dynamically fetch manifest from TradingRef live site via headless scraper
   try {
@@ -115,7 +108,7 @@ export async function fetchLiveData(dateStr: string): Promise<NewspaperData | nu
     console.warn('Live manifest scrape error:', scrapeErr);
   }
 
-  // 3. Fallback: try old remote endpoint if reachable
+  // 3. Fallback: try remote endpoint if reachable
   try {
     const url = `${TRADINGREF_API_BASE}/${cleanDate}.json`;
     const controller = new AbortController();
@@ -200,15 +193,23 @@ export async function resolveEditionData(
 
 
 export function getAvailableSnapshotDates(): string[] {
-  try {
-    const snapshotsDir = path.join(process.cwd(), 'resources', 'tradingref-data', 'json-snapshots');
-    if (fs.existsSync(snapshotsDir)) {
-      return fs.readdirSync(snapshotsDir)
-        .filter(f => /^\d{8}\.json$/.test(f))
-        .map(f => f.replace('.json', ''));
-    }
-  } catch {}
-  return [];
+  const dates = new Set<string>();
+  const dirs = [
+    path.join(process.cwd(), 'resources', 'tradingref-data', 'json-snapshots'),
+    path.join(os.tmpdir(), 'vartta-kosha-snapshots'),
+  ];
+  for (const d of dirs) {
+    try {
+      if (fs.existsSync(d)) {
+        for (const f of fs.readdirSync(d)) {
+          if (/^\d{8}\.json$/.test(f)) {
+            dates.add(f.replace('.json', ''));
+          }
+        }
+      }
+    } catch {}
+  }
+  return Array.from(dates).sort();
 }
 
 export function decryptNewspaperData(data: NewspaperData): DecodedNewspaperData {

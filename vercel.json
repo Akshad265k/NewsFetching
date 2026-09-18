@@ -6,10 +6,12 @@
   "regions": ["bom1"],
   "functions": {
     "src/app/api/pdf/route.ts": {
-      "maxDuration": 120
+      "maxDuration": 60,
+      "memory": 2048
     },
     "src/app/api/**/*.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "memory": 1024
     }
   }
 }

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" fill="none">
+  <!-- Icon - Open Book matching favicon -->
+  <g transform="translate(5, 5)">
+    <path d="M4 7C4 7 7 5 16 5C25 5 28 7 28 7V33C28 33 25 31 16 31C7 31 4 33 4 33V7Z" fill="none" stroke="#4a90a4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M16 5V33" stroke="#4a90a4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Text: "The Chronicle Vault" -->
+  <text x="48" y="22" font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" font-weight="700" fill="#2d2d2d">
+    The Chronicle
+  </text>
+  <text x="48" y="40" font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" font-weight="700" fill="#4a90a4">
+    Vault
+  </text>
+</svg>

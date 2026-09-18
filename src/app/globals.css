@@ -1,0 +1,812 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   THE CHRONICLE VAULT - Indian Newspaper Archive
+   Full Light Neumorphic Design System
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_qU7NShXyEWLf.woff2') format('woff2');
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiA.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ═══ Base Colors ═══ */
+  --bg-base: #e8e8e8;
+  --bg-elevated: #f0f0f0;
+  --bg-inset: #d8d8d8;
+  
+  /* ═══ Shadows ═══ */
+  --shadow-light: #ffffff;
+  --shadow-dark: #bebebe;
+  --shadow-inset-light: #d1d1d1;
+  --shadow-inset-dark: #b8b8b8;
+  
+  /* ═══ Accent Colors ═══ */
+  --accent-primary: #4a90a4;
+  --accent-primary-dark: #3a7a8e;
+  --accent-secondary: #6b8e7a;
+  --accent-highlight: #c4a35a;
+  
+  /* ═══ Text Colors ═══ */
+  --text-primary: #2d2d2d;
+  --text-secondary: #6b6b6b;
+  --text-muted: #8a8a8a;
+  --text-accent: #4a90a4;
+  
+  /* ═══ State Colors ═══ */
+  --state-success: #5a9a6a;
+  --state-warning: #c9a356;
+  --state-error: #b85c5c;
+  --state-info: #5a8ab8;
+  
+  /* ═══ Spacing ═══ */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  
+  /* ═══ Border Radius ═══ */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  
+  /* ═══ Transitions ═══ */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 400ms ease;
+}
+
+@theme inline {
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+  --font-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   NEUMORPHIC COMPONENT STYLES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.neu-elevated {
+  background: var(--bg-elevated);
+  box-shadow: 
+    6px 6px 12px var(--shadow-dark),
+    -6px -6px 12px var(--shadow-light);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-normal);
+}
+
+.neu-elevated:hover {
+  box-shadow: 
+    8px 8px 16px var(--shadow-dark),
+    -8px -8px 16px var(--shadow-light);
+}
+
+.neu-pressed {
+  background: var(--bg-inset);
+  box-shadow: 
+    inset 4px 4px 8px var(--shadow-inset-dark),
+    inset -4px -4px 8px var(--shadow-inset-light);
+  border-radius: var(--radius-lg);
+}
+
+.neu-flat {
+  background: var(--bg-base);
+  box-shadow: none;
+  border-radius: var(--radius-lg);
+}
+
+.neu-button {
+  background: var(--bg-elevated);
+  box-shadow: 
+    4px 4px 8px var(--shadow-dark),
+    -4px -4px 8px var(--shadow-light);
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+
+.neu-button:hover {
+  box-shadow: 
+    6px 6px 12px var(--shadow-dark),
+    -6px -6px 12px var(--shadow-light);
+  transform: translateY(-1px);
+}
+
+.neu-button:active {
+  background: var(--bg-inset);
+  box-shadow: 
+    inset 2px 2px 4px var(--shadow-inset-dark),
+    inset -2px -2px 4px var(--shadow-inset-light);
+  transform: translateY(0);
+}
+
+.neu-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.neu-button-primary {
+  background: linear-gradient(145deg, #52a0b6, #428a9c);
+  color: white;
+  box-shadow: 
+    4px 4px 8px var(--shadow-dark),
+    -4px -4px 8px var(--shadow-light);
+}
+
+.neu-button-primary:hover {
+  background: linear-gradient(145deg, #5aabb2, #4a94a6);
+}
+
+.neu-button-primary:active {
+  background: var(--accent-primary-dark);
+  box-shadow: 
+    inset 2px 2px 4px rgba(0,0,0,0.2),
+    inset -2px -2px 4px rgba(255,255,255,0.1);
+}
+
+.neu-input {
+  background: var(--bg-inset);
+  box-shadow: 
+    inset 3px 3px 6px var(--shadow-inset-dark),
+    inset -3px -3px 6px var(--shadow-inset-light);
+  border-radius: var(--radius-md);
+  border: none;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.neu-input:focus {
+  box-shadow: 
+    inset 4px 4px 8px var(--shadow-inset-dark),
+    inset -4px -4px 8px var(--shadow-inset-light),
+    0 0 0 2px var(--accent-primary);
+}
+
+.neu-card {
+  background: var(--bg-elevated);
+  box-shadow: 
+    8px 8px 16px var(--shadow-dark),
+    -8px -8px 16px var(--shadow-light);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CALENDAR STYLES (react-day-picker v9)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.calendar-wrapper .rdp {
+  --rdp-accent-color: var(--accent-primary);
+  --rdp-accent-background-color: var(--accent-primary);
+  --rdp-day-height: 40px;
+  --rdp-day-width: 40px;
+  --rdp-selected-font: inherit;
+  margin: 0;
+  font-family: var(--font-body);
+}
+
+.calendar-wrapper .rdp-root {
+  width: 100%;
+}
+
+.calendar-wrapper .rdp-months {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.calendar-wrapper .rdp-month {
+  width: 100%;
+}
+
+.calendar-wrapper .rdp-month_caption {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5rem 0;
+  position: relative;
+}
+
+.calendar-wrapper .rdp-caption_label {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendar-wrapper .rdp-nav {
+  display: flex;
+  gap: 0.5rem;
+  position: absolute;
+  width: 100%;
+  justify-content: space-between;
+  padding: 0 0.25rem;
+  pointer-events: none;
+}
+
+.calendar-wrapper .rdp-button_previous,
+.calendar-wrapper .rdp-button_next {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  cursor: pointer;
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+  transition: all 150ms ease;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.calendar-wrapper .rdp-button_previous:hover,
+.calendar-wrapper .rdp-button_next:hover {
+  box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+  color: var(--accent-primary);
+}
+
+.calendar-wrapper .rdp-button_previous:disabled,
+.calendar-wrapper .rdp-button_next:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.calendar-wrapper .rdp-weekdays {
+  display: flex;
+  margin-top: 1rem;
+}
+
+.calendar-wrapper .rdp-weekday {
+  flex: 1;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 0.5rem 0;
+}
+
+.calendar-wrapper .rdp-weeks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.calendar-wrapper .rdp-week {
+  display: flex;
+}
+
+.calendar-wrapper .rdp-day {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+.calendar-wrapper .rdp-day_button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-primary);
+  transition: all 150ms ease;
+}
+
+.calendar-wrapper .rdp-day_button:hover:not(:disabled) {
+  background: var(--bg-base);
+  box-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light);
+}
+
+.calendar-wrapper .rdp-day_button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.calendar-wrapper .rdp-today .rdp-day_button {
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.calendar-wrapper .rdp-selected .rdp-day_button {
+  background: var(--accent-primary) !important;
+  color: white !important;
+  font-weight: 500;
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.2), inset -2px -2px 4px rgba(255,255,255,0.1) !important;
+}
+
+.calendar-wrapper .rdp-disabled .rdp-day_button {
+  color: var(--text-secondary);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.calendar-wrapper .rdp-disabled .rdp-day_button:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.calendar-wrapper .rdp-outside .rdp-day_button {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.calendar-wrapper .rdp-hidden {
+  visibility: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SCROLLBAR STYLES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-inset);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--shadow-dark);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--bg-inset);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-inset) 25%,
+    var(--bg-elevated) 50%,
+    var(--bg-inset) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   UTILITY CLASSES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass-effect {
+  backdrop-filter: blur(10px);
+  background: rgba(232, 232, 232, 0.9);
+  will-change: transform;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   FOCUS-VISIBLE STYLES (Enhanced Keyboard Navigation)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Remove default focus outline */
+*:focus {
+  outline: none;
+}
+
+/* Add focus-visible styles for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  transition: outline-offset var(--transition-fast);
+}
+
+/* Enhanced focus for interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(74, 144, 164, 0.1);
+}
+
+/* Neumorphic button focus states */
+.neu-button:focus-visible {
+  box-shadow: 
+    4px 4px 8px var(--shadow-dark),
+    -4px -4px 8px var(--shadow-light),
+    0 0 0 3px var(--accent-primary);
+}
+
+/* Calendar day button focus */
+.calendar-wrapper .rdp-day_button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(74, 144, 164, 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN - MOBILE FIRST
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Base styles (Mobile 320px+) */
+body {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+  padding: 0;
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+}
+
+h2 {
+  font-size: clamp(1.25rem, 4vw, 1.875rem);
+}
+
+h3 {
+  font-size: clamp(1.125rem, 3.5vw, 1.5rem);
+}
+
+/* Container with safe padding for mobile */
+.container {
+  width: 100%;
+  max-width: 100%;
+  padding-left: clamp(1rem, 4vw, 1.5rem);
+  padding-right: clamp(1rem, 4vw, 1.5rem);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Responsive shadows (smaller on mobile) */
+@media (max-width: 640px) {
+  .neu-elevated {
+    box-shadow: 
+      4px 4px 8px var(--shadow-dark),
+      -4px -4px 8px var(--shadow-light);
+  }
+  
+  .neu-card {
+    box-shadow: 
+      6px 6px 12px var(--shadow-dark),
+      -6px -6px 12px var(--shadow-light);
+    padding: var(--space-4);
+  }
+  
+  .neu-button {
+    box-shadow: 
+      3px 3px 6px var(--shadow-dark),
+      -3px -3px 6px var(--shadow-light);
+  }
+}
+
+/* Tablet breakpoint (768px+) */
+@media (min-width: 768px) {
+  .container {
+    max-width: 720px;
+  }
+}
+
+/* Desktop breakpoint (1024px+) */
+@media (min-width: 1024px) {
+  .container {
+    max-width: 960px;
+  }
+}
+
+/* Large desktop (1280px+) */
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1200px;
+  }
+}
+
+/* Prevent horizontal overflow */
+img,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mobile-friendly touch targets (44x44px minimum) */
+button,
+a,
+input[type="button"],
+input[type="submit"],
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.75rem 1.25rem;
+}
+
+@media (min-width: 768px) {
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"],
+  [role="button"] {
+    padding: 0.625rem 1rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SMOOTH TRANSITIONS (All Interactive Elements)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Default transition for all interactive elements */
+a,
+button,
+input,
+select,
+textarea,
+[role="button"],
+[role="tab"],
+[role="link"] {
+  transition: 
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-normal),
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+/* Smooth transform transitions */
+.transform-transition {
+  transition: transform var(--transition-normal);
+  will-change: transform;
+}
+
+/* Color transitions */
+.color-transition {
+  transition: 
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+/* Opacity transitions */
+.fade-transition {
+  transition: opacity var(--transition-normal);
+}
+
+/* Scale on hover (subtle) */
+.scale-on-hover {
+  transition: transform var(--transition-fast);
+}
+
+.scale-on-hover:hover {
+  transform: scale(1.02);
+}
+
+/* Lift on hover (neumorphic enhancement) */
+.lift-on-hover {
+  transition: 
+    transform var(--transition-fast),
+    box-shadow var(--transition-normal);
+}
+
+.lift-on-hover:hover {
+  transform: translateY(-2px);
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STANDARDIZED SHADOW SCALE
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Shadow utilities (consistent across design) */
+.shadow-neu-xs {
+  box-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light);
+}
+
+.shadow-neu-sm {
+  box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+}
+
+.shadow-neu {
+  box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+}
+
+.shadow-neu-md {
+  box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+}
+
+.shadow-neu-lg {
+  box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+}
+
+.shadow-neu-xl {
+  box-shadow: 12px 12px 24px var(--shadow-dark), -12px -12px 24px var(--shadow-light);
+}
+
+/* Inset shadows */
+.shadow-neu-inset-xs {
+  box-shadow: inset 2px 2px 4px var(--shadow-inset-dark), inset -2px -2px 4px var(--shadow-inset-light);
+}
+
+.shadow-neu-inset {
+  box-shadow: inset 4px 4px 8px var(--shadow-inset-dark), inset -4px -4px 8px var(--shadow-inset-light);
+}
+
+.shadow-neu-inset-lg {
+  box-shadow: inset 6px 6px 12px var(--shadow-inset-dark), inset -6px -6px 12px var(--shadow-inset-light);
+}
+
+/* No shadow */
+.shadow-none {
+  box-shadow: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PERFORMANCE OPTIMIZATIONS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* GPU acceleration for animated elements */
+.gpu-accelerated {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Content visibility for off-screen content */
+.lazy-render {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Skip to main content link */
+.skip-to-main {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+  padding: 1rem 1.5rem;
+  background: var(--accent-primary);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+}
+
+.skip-to-main:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --shadow-dark: #000000;
+    --shadow-light: #ffffff;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+  }
+  
+  .neu-elevated,
+  .neu-card,
+  .neu-button {
+    border: 2px solid var(--text-primary);
+  }
+}
+
+/* Print styles */
+@media print {
+  .neu-elevated,
+  .neu-card,
+  .neu-button {
+    box-shadow: none !important;
+    border: 1px solid #000;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}

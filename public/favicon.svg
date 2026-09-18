@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Open Book Icon - matching the screenshot -->
+  <path d="M4 7C4 7 7 5 16 5C25 5 28 7 28 7V25C28 25 25 23 16 23C7 23 4 25 4 25V7Z" fill="none" stroke="#4a90a4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M16 5V23" stroke="#4a90a4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

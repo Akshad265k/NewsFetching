@@ -122,89 +122,62 @@ export function writeSnapshotFile(cleanDate: string, data: any): void {
 }
 
 /**
- * Dynamically fetches the newspaper and edition directory for a date from TradingRef
+ * Dynamically fetches the newspaper and edition directory for a date from TradingRef.
+ * Uses direct HTTP fetch to the /api/editions endpoint — no headless browser needed.
  */
 export async function fetchLiveDateManifest(dateStr: string): Promise<NewspaperData | null> {
   const cleanDate = dateStr.replace(/-/g, '');
-  const formattedDate = `${cleanDate.slice(0, 4)}-${cleanDate.slice(4, 6)}-${cleanDate.slice(6, 8)}`;
-  
+
   // 1. Check disk snapshot cache first (supports local files and /tmp on Vercel)
   const cached = readSnapshotFile(cleanDate);
   if (cached) return cached;
 
-  // 2. Fetch on-demand via headless browser
-  let browser: Browser | null = null;
-  try {
-    browser = await launchScraperBrowser();
-    const page = await browser.newPage();
+  // 2. Direct HTTP fetch to TradingRef's /api/editions endpoint (fast, no browser needed)
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    await page.goto('https://tradingref.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForSelector('#datePicker', { timeout: 15000 });
-
-    const editionsData = await page.evaluate(async (dateToLoad: string) => {
-      const formatted = dateToLoad.replace(/-/g, '');
-      
-      // Try /api/editions
-      try {
-        const res = await fetch(`/api/editions/${encodeURIComponent(formatted)}`, {
-          headers: { 'Accept': 'application/json, text/plain, */*' },
-          credentials: 'same-origin',
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json && typeof json === 'object' && Object.keys(json).length > 0) {
-            return json;
-          }
+      const response = await fetch(
+        `https://www.tradingref.com/api/editions/${encodeURIComponent(cleanDate)}`,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Referer': 'https://www.tradingref.com/',
+          },
+          signal: controller.signal,
+          cache: 'no-store',
         }
-      } catch {}
+      );
+      clearTimeout(timeoutId);
 
-      // Try /editions
-      try {
-        const res = await fetch(`/editions/${encodeURIComponent(formatted)}`, {
-          headers: { 'Accept': 'application/json, text/plain, */*' },
-          credentials: 'same-origin',
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json && typeof json === 'object' && Object.keys(json).length > 0) {
-            return json;
-          }
+      if (response.ok) {
+        const editionsData = await response.json();
+        if (editionsData && typeof editionsData === 'object' && Object.keys(editionsData).length > 0) {
+          writeSnapshotFile(cleanDate, editionsData);
+          return editionsData as NewspaperData;
         }
-      } catch {}
+      }
 
-      try {
-        // @ts-ignore
-        if (typeof DataManager !== 'undefined' && typeof DataManager.loadEditions === 'function') {
-          // @ts-ignore
-          await DataManager.loadEditions(dateToLoad);
-          // @ts-ignore
-          return DataManager.editionsData;
-        }
-      } catch {}
+      // If we got a non-ok response, no point retrying
+      if (response.status >= 400 && response.status < 500) break;
 
-      return null;
-    }, formattedDate);
-
-    await page.close().catch(() => {});
-
-    if (editionsData && typeof editionsData === 'object' && Object.keys(editionsData).length > 0) {
-      writeSnapshotFile(cleanDate, editionsData);
-      return editionsData as NewspaperData;
-    }
-
-  } catch (error) {
-    console.error(`Live date scraper error for ${dateStr}:`, error);
-  } finally {
-    if (browser) {
-      await browser.close().catch(() => {});
+    } catch (error) {
+      console.warn(`Live manifest fetch attempt ${attempt}/${maxRetries} for ${dateStr}:`, error instanceof Error ? error.message : error);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 500 * attempt));
+      }
     }
   }
 
   return null;
 }
 
+
 /**
- * Dynamically resolves pages for a specific edition on-the-fly
+ * Dynamically resolves pages for a specific edition on-the-fly.
  */
 export async function fetchLiveEditionPages(
   dateStr: string,
@@ -213,7 +186,6 @@ export async function fetchLiveEditionPages(
   edition: string
 ): Promise<DecryptedEntry | null> {
   const cleanDate = dateStr.replace(/-/g, '');
-  const formattedDate = `${cleanDate.slice(0, 4)}-${cleanDate.slice(4, 6)}-${cleanDate.slice(6, 8)}`;
   const normalizedLang = language.toLowerCase();
 
   // 1. Check disk snapshot cache first
@@ -223,7 +195,7 @@ export async function fetchLiveEditionPages(
       cached[language]?.[newspaper]?.[edition] ||
       cached[normalizedLang]?.[newspaper]?.[edition];
     if (typeof cachedObfuscated === 'string' && cachedObfuscated.length > 0) {
-      const decoded = decryptString(cachedObfuscated);
+      const decoded = cachedObfuscated.includes('q!') ? cachedObfuscated : decryptString(cachedObfuscated);
       const parts = decoded.split('q!');
       if (parts.length >= 3) {
         const pages = parts[2].split('m%').filter(p => p.trim());
@@ -238,69 +210,100 @@ export async function fetchLiveEditionPages(
     }
   }
 
-  // 2. Fetch on-demand via headless browser
+  // Helper: persist a resolved entry back to the snapshot cache
+  function persistToCache(entryResult: DecryptedEntry) {
+    try {
+      const currentData = readSnapshotFile(cleanDate);
+      if (currentData) {
+        const langKey = currentData[language] ? language : (currentData[normalizedLang] ? normalizedLang : language);
+        if (currentData[langKey]?.[newspaper]) {
+          currentData[langKey][newspaper][edition] = entryResult.raw_decoded ?? '';
+          writeSnapshotFile(cleanDate, currentData);
+        }
+      }
+    } catch (saveErr) {
+      console.warn('Failed to cache resolved edition:', saveErr);
+    }
+  }
+
+  // 2. Resolve via headless browser by driving TradingRef's DataManager
   let browser: Browser | null = null;
   try {
     browser = await launchScraperBrowser();
     const page = await browser.newPage();
-    await page.goto('https://tradingref.com/', { waitUntil: 'networkidle2', timeout: 25000 });
 
-    const rawData = await page.evaluate(
+    // Block non-essential heavy ad networks to speed up loading
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const url = req.url();
+      const type = req.resourceType();
+      if (
+        type === 'image' || type === 'font' || type === 'media' ||
+        url.includes('doubleclick.net') || url.includes('googletagmanager.com') ||
+        url.includes('google-analytics.com') || url.includes('rubiconproject.com') ||
+        url.includes('presage.io') || url.includes('id5-sync.com') ||
+        url.includes('cloudflareinsights')
+      ) {
+        req.abort().catch(() => {});
+      } else {
+        req.continue().catch(() => {});
+      }
+    });
+
+    await page.goto('https://www.tradingref.com/', { waitUntil: 'networkidle2', timeout: 25000 });
+
+    const result = await page.evaluate(
       async (d: string, lang: string, paper: string, ed: string) => {
         try {
-          const url = `/api/getPage/${d.replace(/-/g, '')}/${encodeURIComponent(lang)}/${encodeURIComponent(paper)}/${encodeURIComponent(ed)}`;
-          const r = await fetch(url);
-          if (r.ok) {
-            const j = await r.json();
-            if (j && (j.Data || j.data)) {
-              return { directData: j.Data || j.data };
+          // @ts-ignore
+          if (typeof DataManager !== 'undefined' && typeof DataManager.loadEditions === 'function') {
+            // @ts-ignore
+            await DataManager.loadEditions(d);
+            // @ts-ignore
+            AppState.selectedDate = d;
+            // @ts-ignore
+            AppState.selectedLanguage = lang;
+            // @ts-ignore
+            AppState.selectedNewspaper = paper;
+            // @ts-ignore
+            AppState.selectedEdition = ed;
+            // @ts-ignore
+            const parsed = await DataManager.loadEditionData();
+            if (parsed && parsed.prefix && parsed.suffix) {
+              return { success: true, parsed };
             }
           }
-        } catch (e: any) {}
-
+        } catch (err: any) {
+          return { success: false, error: err?.message || String(err) };
+        }
         return null;
       },
-      formattedDate,
-      normalizedLang,
+      cleanDate,
+      language,
       newspaper,
       edition
     );
 
-    let entryResult: DecryptedEntry | null = null;
+    await page.close().catch(() => {});
 
-    if (rawData && rawData.directData) {
-      const decoded = decryptString(rawData.directData);
-      const parts = decoded.split('q!');
-      if (parts.length >= 3) {
-        const pages = parts[2].split('m%').filter(p => p.trim());
-        entryResult = {
-          type: parts[0] as DecryptedEntry['type'],
-          prefix: parts[1],
+    if (result?.success && result.parsed) {
+      const { type, prefix, suffix } = result.parsed;
+      const pages = suffix.split('m%').map((p: string) => p.trim()).filter(Boolean);
+      if (pages.length > 0) {
+        const raw_decoded = `${type}q!${prefix}q!${suffix}`;
+        const entry: DecryptedEntry = {
+          type: type as DecryptedEntry['type'],
+          prefix,
           pages,
           pages_count: pages.length,
-          raw_decoded: decoded,
+          raw_decoded,
         };
+        persistToCache(entry);
+        return entry;
       }
+    } else if (result?.error) {
+      console.warn(`[Live Scraper] DataManager error for ${newspaper} (${edition}):`, result.error);
     }
-
-    if (entryResult && entryResult.pages.length > 0) {
-      // Persist to snapshot cache
-      try {
-        const currentData = readSnapshotFile(cleanDate);
-        if (currentData) {
-          const langKey = currentData[language] ? language : (currentData[normalizedLang] ? normalizedLang : language);
-          if (currentData[langKey]?.[newspaper]) {
-            currentData[langKey][newspaper][edition] = entryResult.raw_decoded ?? '';
-            writeSnapshotFile(cleanDate, currentData);
-          }
-        }
-      } catch (saveErr) {
-        console.warn('Failed to cache resolved edition:', saveErr);
-      }
-
-      return entryResult;
-    }
-
   } catch (error) {
     console.error(`Live edition scraper error:`, error);
   } finally {
@@ -311,3 +314,4 @@ export async function fetchLiveEditionPages(
 
   return null;
 }
+

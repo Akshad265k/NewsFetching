@@ -48,9 +48,13 @@ export function validateDateString(dateStr: string): boolean {
 }
 
 export function validateLanguage(lang: string): boolean {
-  return /^[a-z-]+$/.test(lang) && lang.length <= 50;
+  if (typeof lang !== 'string') return false;
+  const trimmed = lang.trim();
+  return trimmed.length > 0 && trimmed.length <= 60 && !/[<>{}\\\/`"']/.test(trimmed);
 }
 
 export function validateNewspaperName(name: string): boolean {
-  return /^[a-z0-9-]+$/.test(name) && name.length <= 100;
+  if (typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  return trimmed.length > 0 && trimmed.length <= 120 && !/[<>{}\\\/`]/.test(trimmed);
 }

@@ -232,29 +232,34 @@ export async function fetchLiveEditionPages(
     browser = await launchScraperBrowser();
     const page = await browser.newPage();
 
-    // Block non-essential heavy ad networks to speed up loading
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const url = req.url();
-      const type = req.resourceType();
-      if (
-        type === 'image' || type === 'font' || type === 'media' ||
-        url.includes('doubleclick.net') || url.includes('googletagmanager.com') ||
-        url.includes('google-analytics.com') || url.includes('rubiconproject.com') ||
-        url.includes('presage.io') || url.includes('id5-sync.com') ||
-        url.includes('cloudflareinsights')
-      ) {
-        req.abort().catch(() => {});
-      } else {
-        req.continue().catch(() => {});
+    await page.goto('https://www.tradingref.com/', { waitUntil: 'networkidle2', timeout: 30000 });
+
+    // Ensure TradingRef Service Worker is ready and controlling page fetches.
+    // TradingRef uses sw.js to intercept /api/getPage/ and decrypt the RSA-OAEP + AES payload.
+    await page.evaluate(async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.ready;
+          if (!navigator.serviceWorker.controller) {
+            await new Promise<void>((resolve) => {
+              navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true });
+              setTimeout(resolve, 3500);
+            });
+          }
+        } catch {}
       }
     });
-
-    await page.goto('https://www.tradingref.com/', { waitUntil: 'networkidle2', timeout: 25000 });
 
     const result = await page.evaluate(
       async (d: string, lang: string, paper: string, ed: string) => {
         try {
+          // Wait up to 5s if DataManager is still loading
+          for (let i = 0; i < 20; i++) {
+            // @ts-ignore
+            if (typeof DataManager !== 'undefined' && typeof DataManager.loadEditions === 'function') break;
+            await new Promise((r) => setTimeout(r, 250));
+          }
+
           // @ts-ignore
           if (typeof DataManager !== 'undefined' && typeof DataManager.loadEditions === 'function') {
             // @ts-ignore

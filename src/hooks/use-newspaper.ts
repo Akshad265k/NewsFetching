@@ -373,7 +373,9 @@ export function useNewspaper() {
 
     stopPolling();
     
-    const requestId = crypto.randomUUID();
+    const requestId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     currentRequestIdRef.current = requestId;
 
     setState(prev => ({

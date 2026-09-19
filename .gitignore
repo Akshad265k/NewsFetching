@@ -23,14 +23,16 @@
 # misc
 .DS_Store
 *.pem
+Thumbs.db
 
-# debug
+# debug & logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
 
 # vercel
@@ -39,3 +41,36 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+
+# Dataset generated artifacts (heavy media files, runtime manifests & caches)
+dataset/images/
+dataset/pdf/
+dataset/manifest.csv
+dataset/downloaded_issues.json
+dataset/failed_issues.csv
+
+# Scratch reverse-engineering & debug artifacts
+scratch/*
+!scratch/app.js
+!scratch/download-app.js
+!scratch/eval-strings.js
+!scratch/inspect-site.js
+!scratch/record-tradingref.js
+!scratch/test-datamanager.js
+!scratch/test-direct-fetch.js
+!scratch/test-fast-scrape.js
+!scratch/test-live-edition.js
+!scratch/test-quick.js
+!scratch/test-screenshot.png

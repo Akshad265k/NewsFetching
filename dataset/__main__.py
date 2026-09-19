@@ -1,4 +1,5 @@
 import sys
+import json
 import argparse
 from pathlib import Path
 
@@ -9,7 +10,7 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 from .discovery import print_discovery
-from .collector import DatasetCollector
+from .collector import DatasetCollector, decrypt_and_merge_locked
 
 def main():
     parser = argparse.ArgumentParser(
@@ -34,6 +35,12 @@ def main():
     collect_parser.add_argument("--edition", default="all", help="Edition name or 'all'")
     collect_parser.add_argument("--delay", type=float, default=1.0, help="Delay in seconds between requests (default: 1.0)")
     collect_parser.add_argument("--output-dir", default="dataset", help="Output directory path (default: dataset)")
+    collect_parser.add_argument("--json-progress", action="store_true", help="Emit progress as JSON lines to stdout")
+
+    # Subcommand: decrypt-pdf
+    decrypt_parser = subparsers.add_parser("decrypt-pdf", help="Decrypt and merge locked PDF pages from JSON input")
+    decrypt_parser.add_argument("--input", required=True, help="Path to JSON file containing {urls: [], passwords: {}}")
+    decrypt_parser.add_argument("--output", required=True, help="Path to output PDF file")
 
     args = parser.parse_args()
 
@@ -48,7 +55,11 @@ def main():
             print("Error: Either --start-date or --date must be specified.")
             sys.exit(1)
 
-        collector = DatasetCollector(output_dir=Path(args.output_dir), delay=args.delay)
+        collector = DatasetCollector(
+            output_dir=Path(args.output_dir),
+            delay=args.delay,
+            json_progress=args.json_progress
+        )
         records = collector.collect_range(
             start_date=start_date,
             end_date=end_date,
@@ -58,7 +69,6 @@ def main():
         )
 
         if records:
-            # Print success summary for collected issues
             for rec in records:
                 pdf_abs = (collector.output_dir / rec['pdf_path']).resolve()
                 img_dir = collector.images_dir / rec['date'] / rec['language'] / collector._clean_filename(rec['newspaper']) / collector._clean_filename(rec['edition'])
@@ -77,6 +87,18 @@ def main():
                 print("=======================================================\n")
         else:
             print("\nNo issues were collected or all matched issues were already up to date.")
+
+    elif args.command == "decrypt-pdf":
+        try:
+            with open(args.input, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            urls = data.get("urls", [])
+            passwords = data.get("passwords", {})
+            decrypt_and_merge_locked(urls, passwords, output_path=args.output)
+            print(json.dumps({"success": True, "output": args.output, "pages": len(urls)}))
+        except Exception as e:
+            print(json.dumps({"success": False, "error": str(e)}), file=sys.stderr)
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

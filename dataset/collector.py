@@ -2,6 +2,7 @@ import os
 import csv
 import json
 import time
+import urllib.parse
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta
@@ -17,7 +18,7 @@ from .resolver import resolve_edition
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 class DatasetCollector:
-    def __init__(self, output_dir: Optional[Path] = None, delay: float = 1.0):
+    def __init__(self, output_dir: Optional[Path] = None, delay: float = 1.0, json_progress: bool = False):
         self.output_dir = Path(output_dir) if output_dir else PROJECT_ROOT / "dataset"
         self.images_dir = self.output_dir / "images"
         self.pdf_dir = self.output_dir / "pdf"
@@ -25,6 +26,7 @@ class DatasetCollector:
         self.downloaded_issues_path = self.output_dir / "downloaded_issues.json"
         self.failed_issues_path = self.output_dir / "failed_issues.csv"
         self.delay = delay
+        self.json_progress = json_progress
 
         self.images_dir.mkdir(parents=True, exist_ok=True)
         self.pdf_dir.mkdir(parents=True, exist_ok=True)
@@ -32,6 +34,19 @@ class DatasetCollector:
         self.downloaded_issues = self._load_downloaded_issues()
         self._init_manifest()
         self._init_failed_issues()
+
+    def _emit_progress(self, stage: str, message: str, current: int = 0, total: int = 0, **kwargs):
+        if self.json_progress:
+            payload = {
+                "type": "progress",
+                "stage": stage,
+                "message": message,
+                "current": current,
+                "total": total,
+                "timestamp": datetime.now().isoformat(),
+                **kwargs
+            }
+            print(f"JSON_PROGRESS:{json.dumps(payload, ensure_ascii=False)}", flush=True)
 
     def _load_downloaded_issues(self) -> Dict[str, Any]:
         if self.downloaded_issues_path.exists():
@@ -93,7 +108,6 @@ class DatasetCollector:
             entry = self.downloaded_issues[key]
             pdf_file = self.output_dir / entry.get("pdf_path", "")
             if pdf_file.exists() and pdf_file.stat().st_size > 0:
-                # Check images
                 page_count = entry.get("pages_count", 0)
                 image_dir = self.images_dir / date / language / self._clean_filename(newspaper) / self._clean_filename(edition)
                 if image_dir.exists():
@@ -126,7 +140,7 @@ class DatasetCollector:
             except Exception:
                 time.sleep(0.5 * (attempt + 1))
 
-        # 2. Proxy fallback via wsrv.nl (as vartta-kosha does for external images)
+        # 2. Proxy fallback via wsrv.nl (for images)
         if not url.lower().endswith(".pdf"):
             try:
                 proxy_url = f"https://wsrv.nl/?url={urllib.parse.quote(url)}&output=jpg&q=95"
@@ -152,15 +166,20 @@ class DatasetCollector:
 
         # 1. Deduplication check
         if self.is_issue_downloaded(formatted_date, language, newspaper, edition):
-            print(f"⏩ [Skip] Issue already downloaded: {formatted_date} | {language} | {newspaper} | {edition}")
+            msg = f"Issue already downloaded: {formatted_date} | {language} | {newspaper} | {edition}"
+            print(f"⏩ [Skip] {msg}")
+            self._emit_progress("complete", msg, current=1, total=1, issue=issue_key)
             return self.downloaded_issues[issue_key]
 
         print(f"📥 [Collect] Resolving issue: {formatted_date} | {language} | {newspaper} | {edition}...")
+        self._emit_progress("resolving", f"Resolving issue manifest: {newspaper} ({edition})", current=0, total=1)
+
         resolved = resolve_edition(formatted_date, language, newspaper, edition)
         if not resolved or not resolved.get("pages"):
             reason = "Could not resolve edition pages from TradingRef"
             print(f"❌ {reason}")
             self._record_failure(formatted_date, language, newspaper, edition, reason)
+            self._emit_progress("error", reason, error=reason)
             return None
 
         content_type = resolved.get("type", "image")
@@ -168,6 +187,7 @@ class DatasetCollector:
         total_pages = len(page_urls)
 
         print(f"   Found {total_pages} page(s) (type: {content_type})")
+        self._emit_progress("downloading", f"Found {total_pages} pages ({content_type}). Starting extraction...", current=0, total=total_pages)
 
         issue_img_dir = self.images_dir / formatted_date / language / self._clean_filename(newspaper) / self._clean_filename(edition)
         issue_img_dir.mkdir(parents=True, exist_ok=True)
@@ -192,13 +212,15 @@ class DatasetCollector:
                         merged_pdf.insert_pdf(temp_doc)
                         saved_images.append(img_path)
                         print(f"   ✓ Page {idx}/{total_pages} resumed from disk")
+                        self._emit_progress("rendering", f"Page {idx}/{total_pages} loaded from cache", current=idx, total=total_pages)
                         continue
                     except Exception:
                         pass
 
-                # Polite delay between page requests to avoid server-side throttling
-                time.sleep(0.8)
+                # Polite delay between page requests
+                time.sleep(0.5)
 
+                self._emit_progress("downloading", f"Downloading page {idx}/{total_pages}...", current=idx, total=total_pages)
                 data = self.download_asset(url)
                 if not data:
                     raise RuntimeError(f"Failed to download asset for page {idx}: {url}")
@@ -213,6 +235,7 @@ class DatasetCollector:
                             filename = url.split("?")[0].split("/")[-1]
                             password = filename[:10]
                             page_doc.authenticate(password)
+                            self._emit_progress("decrypting", f"Page {idx}/{total_pages} decrypted (pdfl)", current=idx, total=total_pages)
 
                         if len(page_doc) > 0:
                             # Render page to 300 DPI JPEG
@@ -223,6 +246,7 @@ class DatasetCollector:
                             # Insert into merged PDF
                             merged_pdf.insert_pdf(page_doc)
                             print(f"   ✓ Page {idx}/{total_pages} extracted from PDF and rendered (300 DPI)")
+                            self._emit_progress("rendering", f"Page {idx}/{total_pages} rendered (300 DPI)", current=idx, total=total_pages)
                             continue
                     except Exception as pe:
                         print(f"   ⚠️ Could not parse as PDF directly, trying image fallback: {pe}")
@@ -230,7 +254,6 @@ class DatasetCollector:
                 # Otherwise treat as image (PNG / JPG / WEBP)
                 try:
                     img_doc = pymupdf.open(stream=data, filetype="image")
-                    # Convert to PDF page
                     pdf_bytes = img_doc.convert_to_pdf()
                     temp_page_doc = pymupdf.open("pdf", pdf_bytes)
                     merged_pdf.insert_pdf(temp_page_doc)
@@ -243,10 +266,12 @@ class DatasetCollector:
                     pil_img.save(str(img_path), "JPEG", quality=95)
                     saved_images.append(img_path)
                     print(f"   ✓ Page {idx}/{total_pages} saved as JPEG (quality=95)")
+                    self._emit_progress("rendering", f"Page {idx}/{total_pages} saved as image", current=idx, total=total_pages)
                 except Exception as ie:
                     raise RuntimeError(f"Failed to process page {idx} as image/PDF: {ie}")
 
             # Save assembled / original PDF
+            self._emit_progress("merging", f"Assembling final PDF for {newspaper}...", current=total_pages, total=total_pages)
             merged_pdf.save(str(target_pdf_path))
             merged_pdf.close()
 
@@ -291,11 +316,13 @@ class DatasetCollector:
             self.downloaded_issues[issue_key] = record
             self._save_downloaded_issues()
 
+            self._emit_progress("complete", f"Issue collected: {newspaper} ({edition}) - {total_pages} pages", current=total_pages, total=total_pages, record=record)
             return record
 
         except Exception as e:
             print(f"❌ Error collecting {newspaper} ({edition}): {e}")
             self._record_failure(formatted_date, language, newspaper, edition, str(e))
+            self._emit_progress("error", f"Error collecting {newspaper}: {e}", error=str(e))
             if target_pdf_path.exists() and target_pdf_path.stat().st_size == 0:
                 target_pdf_path.unlink()
             return None
@@ -374,3 +401,41 @@ class DatasetCollector:
             current_date += timedelta(days=1)
 
         return collected_records
+
+
+def decrypt_and_merge_locked(
+    urls: List[str],
+    passwords: Optional[Dict[str, str]] = None,
+    output_path: Optional[str] = None
+) -> bytes:
+    """
+    Downloads, decrypts, and merges password-protected PDF pages (pdfl) in memory.
+    """
+    if passwords is None:
+        passwords = {}
+
+    merged_pdf = pymupdf.open()
+    collector = DatasetCollector()
+
+    for idx, url in enumerate(urls, start=1):
+        data = collector.download_asset(url)
+        if not data:
+            raise RuntimeError(f"Failed to download PDF asset for page {idx}: {url}")
+
+        page_doc = pymupdf.open(stream=data, filetype="pdf")
+        if page_doc.is_encrypted:
+            filename = url.split("?")[0].split("/")[-1]
+            pwd = passwords.get(filename) or filename[:10]
+            authenticated = page_doc.authenticate(pwd)
+            if not authenticated:
+                raise RuntimeError(f"Password authentication failed for page {idx} ({filename})")
+
+        merged_pdf.insert_pdf(page_doc)
+        page_doc.close()
+
+    if output_path:
+        merged_pdf.save(output_path)
+
+    pdf_bytes = merged_pdf.tobytes()
+    merged_pdf.close()
+    return pdf_bytes

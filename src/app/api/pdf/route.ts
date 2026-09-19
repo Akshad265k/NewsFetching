@@ -12,6 +12,10 @@ import { env } from '@/lib/env';
 import { PDFDocument } from 'pdf-lib';
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit';
 import { fetchWithTimeout, fetchWithRetry, externalApiCircuitBreaker } from '@/lib/fetch-utils';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { spawn } from 'child_process';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -394,7 +398,7 @@ function buildPasswordMapFromPages(pages: string[]): Record<string, string> {
   return map;
 }
 
-async function mergeLockedPdfsWithCloudRun(
+async function mergeLockedPdfsWithPython(
   urls: string[],
   passwords: Record<string, string>,
   onProgress?: (message: string, log: string, current?: number, total?: number) => void
@@ -403,134 +407,63 @@ async function mergeLockedPdfsWithCloudRun(
     return { pdfData: null, pagesAdded: 0, failures: [] };
   }
 
-  const configuredUrl = env.LOCKED_PDF_DECRYPT_URL?.trim();
-  if (!configuredUrl) {
-    return {
-      pdfData: null,
-      pagesAdded: 0,
-      failures: ['LOCKED_PDF_DECRYPT_URL is not configured'],
-    };
-  }
+  const tmpId = `locked_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const inputJsonPath = path.join(os.tmpdir(), `${tmpId}_input.json`);
+  const outputPdfPath = path.join(os.tmpdir(), `${tmpId}_output.pdf`);
 
-  let serviceUrl = configuredUrl;
-  if (!configuredUrl.endsWith('/merge-locked')) {
-    serviceUrl = `${configuredUrl.replace(/\/+$/, '')}/merge-locked`;
-  }
+  fs.writeFileSync(inputJsonPath, JSON.stringify({ urls, passwords }), 'utf-8');
 
-  const inputPayload = {
-    urls,
-    passwords,
-  };
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  if (env.LOCKED_PDF_DECRYPT_TOKEN?.trim()) {
-    headers.Authorization = `Bearer ${env.LOCKED_PDF_DECRYPT_TOKEN.trim()}`;
-  }
-
-  const simulatedTotal = Math.max(urls.length, 6);
-  let simulatedCurrent = 0;
-  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  onProgress?.(`Starting local Python decryptor for ${urls.length} pages...`, '🔐 Launching PyMuPDF decrypt engine', 1, urls.length);
 
   try {
+    const pythonBin = process.env.PYTHON_PATH || 'python';
+    const projectRoot = process.cwd();
 
-    const emitProgress = (message: string, log: string, step?: number) => {
-      if (typeof step === 'number') {
-        simulatedCurrent = Math.max(simulatedCurrent, Math.min(step, simulatedTotal));
-      }
-      onProgress?.(message, log, simulatedCurrent, simulatedTotal);
-    };
-
-    emitProgress(`Connecting to decryption service...`, `🔐 Initiating secure connection`, 1);
-    heartbeat = setInterval(() => {
-      if (simulatedCurrent < simulatedTotal - 1) {
-        simulatedCurrent += 1;
-      }
-      onProgress?.(
-        `Decrypting locked PDF sources (${simulatedCurrent}/${simulatedTotal})...`,
-        `🔓 Decrypting source batch ${simulatedCurrent}/${simulatedTotal}`,
-        simulatedCurrent,
-        simulatedTotal
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(
+        pythonBin,
+        ['-m', 'dataset', 'decrypt-pdf', '--input', inputJsonPath, '--output', outputPdfPath],
+        {
+          cwd: projectRoot,
+          env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
+          windowsHide: true,
+        }
       );
-    }, 1500);
-    
-    const response = await fetchWithRetry(
-      serviceUrl,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(inputPayload),
-        cache: 'no-store',
-        // Keep this below the route timeout so we can return a controlled error
-        // instead of letting the platform emit a generic 504.
-        timeout: 45000,
-      },
-      {
-        // Avoid extending total runtime with retries in serverless execution.
-        maxRetries: 0,
-        retryDelay: 1000,
-      }
-    );
 
-    emitProgress(`Processing decryption response...`, `🔓 Decryption service responded`, simulatedTotal - 1);
+      child.on('close', (code) => {
+        if (code === 0 && fs.existsSync(outputPdfPath)) {
+          resolve();
+        } else {
+          reject(new Error(`Python decryptor exited with code ${code}`));
+        }
+      });
 
-    const rawText = await response.text();
-    let parsed: {
-      ok?: boolean;
-      pagesAdded?: number;
-      pdfBase64?: string;
-      failures?: string[];
-      error?: string;
-    } = {};
+      child.on('error', (err) => reject(err));
+    });
 
-    try {
-      parsed = JSON.parse(rawText || '{}');
-    } catch {
+    if (fs.existsSync(outputPdfPath)) {
+      const buf = fs.readFileSync(outputPdfPath);
+      const pdfData = new Uint8Array(buf);
+      onProgress?.('Decryption and merging complete!', `✓ Successfully merged ${urls.length} pages with PyMuPDF`, urls.length, urls.length);
       return {
-        pdfData: null,
-        pagesAdded: 0,
-        failures: [
-          response.ok
-            ? 'Cloud Run decrypt service returned invalid JSON'
-            : `Cloud Run decrypt service error (${response.status})`,
-        ],
+        pdfData,
+        pagesAdded: urls.length,
+        failures: [],
       };
     }
-
-    if (!response.ok || !parsed.ok || !parsed.pdfBase64) {
-      return {
-        pdfData: null,
-        pagesAdded: 0,
-        failures: parsed.failures && parsed.failures.length
-          ? parsed.failures
-          : [parsed.error || `Cloud Run decrypt service failed (${response.status})`],
-      };
-    }
-
-    emitProgress(`Decryption completed successfully`, `✓ Decrypted ${parsed.pagesAdded || 0} pages`, simulatedTotal);
-
-    return {
-      pdfData: new Uint8Array(Buffer.from(parsed.pdfBase64, 'base64')),
-      pagesAdded: parsed.pagesAdded ?? 0,
-      failures: parsed.failures ?? [],
-    };
-  } catch (error) {
+  } catch (err: any) {
+    console.error('Python locked PDF decryption failed:', err);
     return {
       pdfData: null,
       pagesAdded: 0,
-      failures: [
-        error instanceof Error
-          ? `Cloud Run request failed: ${error.message}`
-          : 'Cloud Run request failed',
-      ],
+      failures: [err.message || 'Python locked PDF decryption failed'],
     };
   } finally {
-    if (heartbeat) {
-      clearInterval(heartbeat);
-    }
+    try { if (fs.existsSync(inputJsonPath)) fs.unlinkSync(inputJsonPath); } catch {}
+    try { if (fs.existsSync(outputPdfPath)) fs.unlinkSync(outputPdfPath); } catch {}
   }
+
+  return { pdfData: null, pagesAdded: 0, failures: ['Decryption failed'] };
 }
 
 export async function GET(request: NextRequest) {
@@ -758,7 +691,7 @@ export async function POST(request: NextRequest) {
                   'Calling external decrypt service'
                 );
 
-                const lockedResult = await mergeLockedPdfsWithCloudRun(urls, passwordMap, (message, log, current, total) => {
+                const lockedResult = await mergeLockedPdfsWithPython(urls, passwordMap, (message, log, current, total) => {
                   updateProgressJob(
                     requestId,
                     { stage: 'decrypting', message, current, total },
